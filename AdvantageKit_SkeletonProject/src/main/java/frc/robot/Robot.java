@@ -1,25 +1,25 @@
-// Copyright 2021-2024 FRC 6328
-// http://github.com/Mechanical-Advantage
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// version 3 as published by the Free Software Foundation or
-// available in the root directory of this project.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
 
-import org.littletonrobotics.junction.LogFileUtil;
-import org.littletonrobotics.junction.LoggedRobot;
-import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
-import org.littletonrobotics.junction.networktables.NT4Publisher;
-import org.littletonrobotics.junction.wpilog.WPILOGReader;
-import org.littletonrobotics.junction.wpilog.WPILOGWriter;
+import com.revrobotics.CANSparkBase.ControlType;
+import com.revrobotics.CANSparkBase.IdleMode;
+import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.SparkPIDController;
+
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+//import edu.wpi.first.wpilibj.drive.RobotDriveBase.MotorType;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -27,102 +27,503 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
  * the package after creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends LoggedRobot {
-  private static final String defaultAuto = "Default";
-  private static final String customAuto = "My Auto";
-  private String autoSelected;
-  private final LoggedDashboardChooser<String> chooser =
-      new LoggedDashboardChooser<>("Auto Choices");
+public class Robot extends TimedRobot {
+  private static final String spot3B = "spot3B";
+  private static final String spot2B = "spot2B";
+  private static final String spot1B = "spot1B";
+  private static final String spot3R = "spot3R";
+  private static final String spot2R = "spot2R";
+  private static final String spot1R = "spot1R";
+  private static final String shoot = "shoot";
+  private static final String amp_auto = "amp_auto";
+  private static final String blue_amp = "blue_amp";
+  private String m_autoSelected;
+  private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
-  /**
-   * This function is run when the robot is first started up and should be used for any
-   * initialization code.
-   */
+  private static Timer timer = new Timer();
+
+  private static CANSparkMax leftMotor1 = new CANSparkMax(1, MotorType.kBrushless);
+  private static CANSparkMax leftMotor2 = new CANSparkMax(2, MotorType.kBrushless);
+  private static CANSparkMax rightMotor1 = new CANSparkMax(3, MotorType.kBrushless);
+  private static CANSparkMax rightMotor2 = new CANSparkMax(4, MotorType.kBrushless);
+  private static CANSparkMax shootMotor = new CANSparkMax(5, MotorType.kBrushless);
+  private static CANSparkMax shootMotorFollower = new CANSparkMax(6, MotorType.kBrushless);
+  private static CANSparkMax pullMotor = new CANSparkMax(7, MotorType.kBrushless);
+  private static CANSparkMax rotateMotor = new CANSparkMax(8, MotorType.kBrushless);
+
+  private static DigitalInput ringSensor = new DigitalInput(0);
+
+  private static RelativeEncoder leftEncoder1 = leftMotor1.getEncoder();
+  private static RelativeEncoder rotateEncoder = rotateMotor.getEncoder();
+  private static double circumference = Math.PI * .1016;
+  private static double gearRatio = 8.95;
+  private static double rotateGearRatio = 100;
+
+  private SparkPIDController pid = rotateMotor.getPIDController();
+
+  private static GenericHID leftJoystick = new GenericHID(0);
+  private static GenericHID rightJoystick = new GenericHID(1);
+  private static GenericHID buttonJoystick =new GenericHID(2);
+  //leftMotor1 and rightMotor1 are leaders
+  private DifferentialDrive diffDrive = new DifferentialDrive(leftMotor1, rightMotor1);
+   //* This function is run when the robot is first started up and should be used for any
+  // * initialization code.
+   //*/
   @Override
   public void robotInit() {
-    // Record metadata
-    Logger.recordMetadata("ProjectName", BuildConstants.MAVEN_NAME);
-    Logger.recordMetadata("BuildDate", BuildConstants.BUILD_DATE);
-    Logger.recordMetadata("GitSHA", BuildConstants.GIT_SHA);
-    Logger.recordMetadata("GitDate", BuildConstants.GIT_DATE);
-    Logger.recordMetadata("GitBranch", BuildConstants.GIT_BRANCH);
-    switch (BuildConstants.DIRTY) {
-      case 0:
-        Logger.recordMetadata("GitDirty", "All changes committed");
-        break;
-      case 1:
-        Logger.recordMetadata("GitDirty", "Uncomitted changes");
-        break;
-      default:
-        Logger.recordMetadata("GitDirty", "Unknown");
-        break;
-    }
+    m_chooser.setDefaultOption("spot3B", spot3B);
+    m_chooser.addOption("spot2B", spot2B);
+    m_chooser.addOption("spot1B", spot1B);
+    SmartDashboard.putData("Auto choices", m_chooser);
+    m_chooser.addOption("spot3R", spot3R);
+    m_chooser.addOption("spot1R", spot1R);
+    m_chooser.addOption("spot2R", spot2R);
+    m_chooser.addOption("shoot", shoot);
+    m_chooser.addOption("amp_auto", amp_auto);
+    m_chooser.addOption("blue_amp", blue_amp);
 
-    // Set up data receivers & replay source
-    switch (Constants.currentMode) {
-      case REAL:
-        // Running on a real robot, log to a USB stick ("/U/logs")
-        Logger.addDataReceiver(new WPILOGWriter());
-        Logger.addDataReceiver(new NT4Publisher());
-        break;
+    // Motor 2 will allways follow motor 1
+    // dont use motor 2 in code
 
-      case SIM:
-        // Running a physics simulator, log to NT
-        Logger.addDataReceiver(new NT4Publisher());
-        break;
+    leftMotor1.restoreFactoryDefaults();
+    leftMotor2.restoreFactoryDefaults();
+    rightMotor1.restoreFactoryDefaults();
+    rightMotor2.restoreFactoryDefaults();
 
-      case REPLAY:
-        // Replaying a log, set up replay source
-        setUseTiming(false); // Run as fast as possible
-        String logPath = LogFileUtil.findReplayLog();
-        Logger.setReplaySource(new WPILOGReader(logPath));
-        Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
-        break;
-    }
+    shootMotor.restoreFactoryDefaults();
+    shootMotorFollower.restoreFactoryDefaults();
+    pullMotor.restoreFactoryDefaults();
+    rotateMotor.restoreFactoryDefaults();
 
-    // See http://bit.ly/3YIzFZ6 for more information on timestamps in AdvantageKit.
-    // Logger.disableDeterministicTimestamps()
+    shootMotor.setIdleMode(IdleMode.kCoast);
 
-    // Start AdvantageKit logger
-    Logger.start();
+    leftMotor1.setIdleMode(IdleMode.kBrake);
+    leftMotor2.setIdleMode(IdleMode.kBrake);
+    rightMotor1.setIdleMode(IdleMode.kBrake);
+    rightMotor2.setIdleMode(IdleMode.kBrake);
+    pullMotor.setIdleMode(IdleMode.kBrake);
+    rotateMotor.setIdleMode(IdleMode.kBrake);
 
-    // Initialize auto chooser
-    chooser.addDefaultOption("Default Auto", defaultAuto);
-    chooser.addOption("My Auto", customAuto);
+    leftMotor1.setInverted(true);
+    rightMotor1.setInverted(false);
+    shootMotorFollower.setInverted(true);
+
+    leftMotor2.follow(leftMotor1);
+    rightMotor2.follow(rightMotor1);
+
+    leftEncoder1.setPositionConversionFactor(circumference/gearRatio);
+    rotateEncoder.setPositionConversionFactor(360/rotateGearRatio); //Convert position of intake to degrees
+
+    rotateEncoder.setPosition(0);
+
+    pid.setP(.007);
+
+    leftMotor1.burnFlash();
+    leftMotor2.burnFlash();
+    rightMotor1.burnFlash();
+    rightMotor2.burnFlash();
+    shootMotor.burnFlash();
+    shootMotorFollower.burnFlash();
+    rotateMotor.burnFlash();
+    pullMotor.burnFlash();
+
+     CameraServer.startAutomaticCapture();//.setResolution(1280, 720);
+
+     ringSensor.get();
+
   }
 
-  /** This function is called periodically during all modes. */
+  /**
+   * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
+   * that you want ran during disabled, autonomous, teleoperated and test.
+   *
+   * <p>This runs after the mode specific periodic functions, but before LiveWindow and
+   * SmartDashboard integrated updating.
+   */
   @Override
   public void robotPeriodic() {}
 
-  /** This function is called once when autonomous is enabled. */
+  /**
+   * This autonomous (along with the chooser code above) shows how to select between different
+   * autonomous modes using the dashboard. The sendable chooser code works with the Java
+   * SmartDashboard. If you prefer the LabVIEW Dashboard, remove all of the chooser code and
+   * uncomment the getString line to get the auto name from the text box below the Gyro
+   *
+   * <p>You can add additional auto modes by adding additional comparisons to the switch structure
+   * below with additional strings. If using the SendableChooser make sure to add them to the
+   * chooser code above as well.
+   */
   @Override
   public void autonomousInit() {
-    autoSelected = chooser.get();
-    System.out.println("Auto selected: " + autoSelected);
+    m_autoSelected = m_chooser.getSelected();
+     //m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
+    System.out.println("Auto selected: " + m_autoSelected);
+    timer.reset();
+    timer.start();
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    switch (autoSelected) {
-      case customAuto:
-        // Put custom auto code here
+    switch (m_autoSelected) {
+      
+     case blue_amp:
+     if(timer.get() < .1){
+       //brake toothpicks
+      pullMotor.set(.5);
+        //readys the motor
+    }else if (timer.get() < .2){
+          pullMotor.set(0);
+          shootMotor.set(.25);
+          shootMotorFollower.set(.25);
+        } else if (timer.get() < 1.9){
+          diffDrive.arcadeDrive(.5, -.5);
+        } else if (timer.get() < 2.4) {
+          diffDrive.arcadeDrive(.5, 0);
+        }else if (timer.get() < 3.4){
+          diffDrive.arcadeDrive(0, 0);
+        }else if ( timer.get() < 5.4) {
+          pullMotor.set(-.5);
+        } else if (timer.get() < 6.4) {
+          rotateMotor.getPIDController().setReference(-230, ControlType.kPosition);
+        }else if (timer.get() < 6.9) {
+          diffDrive.arcadeDrive(-.5, 0);
+       
+        }else if (timer.get() < 8.7){
+         diffDrive.arcadeDrive(-.5, -.5);
+          pullMotor.set(.5);}
+          else if(timer.get() < 9.2) {
+            pullMotor.set(.5);
+           
+          } else if (timer.get() < 11.6){
+            pullMotor.set(0);
+         diffDrive.arcadeDrive(.5, .5);
+          }else if (timer.get() < 12.2) {
+             rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
+             diffDrive.arcadeDrive(.5, 0);
+              shootMotor.set(.25);
+          shootMotorFollower.set(.25);
+          } else if (timer.get() > 13.3) {
+            pullMotor.set(-.5);
+            
+          } else {
+
+          }
+          
+        
+          break;
+     
+        case amp_auto:
+     //Clear toothpics from intake
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+// move torawds the amp
+        }else if (timer.get() < .2){
+          pullMotor.set(0);
+        }else if (timer.get() < 1.2){
+        diffDrive.arcadeDrive(.8, 0);
+
+        } else if (timer.get() < 1.45){
+        diffDrive.arcadeDrive(0, .5);
+        
+        } else if (timer.get() < 1.5) {
+          diffDrive.arcadeDrive(-.5, 0);
+          
+        } else if (timer.get() < 3.5) {
+          shootMotor.set(.25);
+          shootMotorFollower.set(.25);
+        } else if (timer.get() < 5) {
+          pullMotor.set(-.5);
+        } else if (timer.get() < 5.2){
+        shootMotor.set(0);
+        shootMotorFollower.set(0);
+        pullMotor.set(0);
+        diffDrive.arcadeDrive(.5, 0);
+
+      }else if (timer.get() < 5.45) {
+        diffDrive.arcadeDrive(0, -.5);
+      }else if (timer.get() < 8.45) {
+        diffDrive.arcadeDrive(.8, 0);
+        rotateMotor.getPIDController().setReference(-210, ControlType.kPosition);  //TODO: Check position of intake
+      pullMotor.set(.5);
+    
+    } else if ( timer.get() < 9) {
+      diffDrive.arcadeDrive(0, 0);
+    } else if(!ringSensor.get()) {
+        pullMotor.set(0);
+
+       } else if (timer.get() < 11){
+        diffDrive.arcadeDrive(-.8, 0);
+       } else if (timer.get() < 11.25){
+       diffDrive.arcadeDrive(0, .5);
+      }else if (timer.get() < 11.5){
+      diffDrive.arcadeDrive(.5, 0);
+      shootMotor.set(1);
+      shootMotorFollower.set(1);
+      } else if(timer.get() > 14){
+      pullMotor.set(-.5);
+        
+      } 
+    
+
+      break;
+     
+      case shoot:
+      //Clear toothpics from intake
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+      //stop intake 
+        } else if(timer.get() < 6){
+        pullMotor.set(0);
+        }
+      //spin up motors for 3 seconds
+        //} else if(timer.get() < 9){
+        //shootMotor.set(1);
+        //shootMotorFollower.set(1);
+      //release note and fire! 
+        //} else if (timer.get() > 10) {
+        //pullMotor.set(-.5);
+        //}
+       default:
         break;
-      case defaultAuto:
-      default:
-        // Put default auto code here
+      
+
+      case spot2B:
+        // clear toothpick from intake
+         if(timer.get() < .1){
+        pullMotor.set(.5);
+         }
+        //stop intake and warm up moters 
+        else if(timer.get() < 2)
+        {pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+        }
+        // feeed shooters
+        else if (timer.get() < 3.6 ) {
+        pullMotor.set(-.5);
+        //Move back
+        } else if(timer.get() < 8){
+        diffDrive.arcadeDrive(-.5, 0);
+        //stop moving
+        } else if(timer.get() < 9.5 ){
+        diffDrive.arcadeDrive(0, 0);
+        }
         break;
-    }
-  }
+
+        
+      case spot3B:
+        //sacrifice toothpick
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+        //stop intake and speed up shooter
+        } else if (timer.get() < 3) {
+        pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+        }
+        //release note and fire!
+        else if (timer.get() < 4){
+        pullMotor.set(-.5);
+        //drive back 
+        } else  if(timer.get() < 8){
+        diffDrive.arcadeDrive(-.3, 0);
+        //rotate to the _____
+        } else if(timer.get() < 8.25){
+        diffDrive.arcadeDrive(0, .5);
+        // Drive back faster
+        } else if(timer.get() < 12 ){
+        diffDrive.arcadeDrive(-.5, 0);
+        //stop moving
+        } else {
+        diffDrive.arcadeDrive(0, 0);
+        }
+        break;
+
+      case spot1B:
+        //sacrifice toothpick
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+        //sacrificing complete & warm up speakers
+        } else if(timer.get() < 1.5){
+        pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+        //release note and fire!
+        } else if (timer.get() < 5) {
+        pullMotor.set(-.5);
+        //drive back
+        } else if(timer.get() < 9){
+        diffDrive.arcadeDrive(-.5, 0);
+        //rotate to the _____
+        } else if(timer.get() < 9.25){
+        diffDrive.arcadeDrive(0, -.5);
+        //drive back
+        }else if(timer.get() < 13 ){
+        diffDrive.arcadeDrive(-.5, 0);
+        //stop moving
+        } else {
+        diffDrive.arcadeDrive(0, 0);
+        } 
+        break;
+    
+   
+     case spot3R:
+        //sacrifice toothpick
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+        //stop intake and speed up shooter
+        } else if (timer.get() < 3) {
+        pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+        //release note and fire!
+        } else if (timer.get() < 3.5) {
+        pullMotor.set(-.5);
+        //drive back
+        } else  if(timer.get() < 7){
+        diffDrive.arcadeDrive(-.3, 0);
+        //rotate to the _______
+        } else if(timer.get() < 7.25){
+        diffDrive.arcadeDrive(0, -.5);
+        //drive back
+        } else if(timer.get() < 11 ){
+        diffDrive.arcadeDrive(-.5, 0);
+        //stop
+        } else {
+        diffDrive.arcadeDrive(0, 0);
+        }
+        break;
+
+
+    case spot2R:
+        //Sacrifice the toothpick
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+        //stop intake and speed up shooters
+        }else if(timer.get() < 1){
+        pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+        //wait!!!
+        } else if (timer.get() < 4) {
+          pullMotor.set(0);
+        //release note and fire!
+        }else if (timer.get() < 4.5) {
+        pullMotor.set(-.5);
+        //drive back 
+        } else if(timer.get() < 9){
+        diffDrive.arcadeDrive(-.5, 0);
+        //stop driving
+        } else if(timer.get() <9.5 ){
+        diffDrive.arcadeDrive(0, 0);
+        }
+        break;
+    
+    
+    case spot1R:
+
+        if(timer.get() < .1){
+        pullMotor.set(.5);
+    
+        } else if (timer.get() < 1.25) {
+        pullMotor.set(0);
+        shootMotor.set(1);
+        shootMotorFollower.set(1);
+    
+        } else if (timer.get() < 3) {
+        pullMotor.set(-.5);
+       
+        } else  if(timer.get() < 7){
+        diffDrive.arcadeDrive(-.3, 0);
+      
+        } else if(timer.get() < 7.25){
+        diffDrive.arcadeDrive(0, .5);
+      
+        } else if(timer.get() < 11 ){
+        diffDrive.arcadeDrive(-.5, 0);
+      
+        } else {
+        diffDrive.arcadeDrive(0, 0);
+        } 
+        break; }}
+      
+    
+    //spot3LPickup:
+  //if(timer.get() < 2.5){
+       // shootMotor.set(1);
+       // shootMotorFollower.set(1);
+     //} else if (timer.get() < 3) {
+      //  pullMotor.set(-.5);
+     //  }
+      
+      // else if (timer.get() < 4){
+       //shootMotor.set(.0);
+       //shootMotorFollower.set(0);
+      // pullMotor.set(0);
+      
+      //} else if (timer.get() < 4.8); {
+        //diffDrive.arcadeDrive(.8, 0);
+      
+      //} else if (timer.get() < 4.9); {
+      //  diffDrive.arcadeDrive(0, .8);
+     
+      //} else if (timer.get() <5.5); {
+    //    diffDrive.arcadeDrive(.8, 0);
+
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+
+  }
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+
+      
+      
+    SmartDashboard.putNumber("Intake Position", rotateMotor.getEncoder().getPosition());
+    
+   
+    
+    if(buttonJoystick.getRawButton(5)){
+      rotateMotor.getPIDController().setReference(-225, ControlType.kPosition);
+    } 
+    //rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
+
+    if(buttonJoystick.getRawButton(6)){
+      rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
+    }
+
+
+    if (buttonJoystick.getRawButton(3)) {
+    pullMotor.set(-.6);
+    }
+    else if (buttonJoystick.getRawButton(2)) {
+    pullMotor.set(.6);
+    }
+    else{
+    pullMotor.set(0);
+    }
+   
+    if (buttonJoystick.getRawButton(1)) {
+      shootMotor.set(1);
+      shootMotorFollower.set(1);
+    }
+    else if (buttonJoystick.getRawButton(4)) {
+      shootMotor.set(.25);
+      shootMotorFollower.set(.25);
+    }
+    else{
+      shootMotor.set(0);
+    
+      shootMotorFollower.set(0);
+    }
+     diffDrive.arcadeDrive(leftJoystick.getRawAxis(1) * 1, rightJoystick.getRawAxis(0) * .8);
+
+  }
 
   /** This function is called once when the robot is disabled. */
   @Override
@@ -147,4 +548,4 @@ public class Robot extends LoggedRobot {
   /** This function is called periodically whilst in simulation. */
   @Override
   public void simulationPeriodic() {}
-}
+} 
