@@ -7,23 +7,38 @@ package frc.robot;
 import com.revrobotics.CANSparkBase.ControlType;
 import com.revrobotics.CANSparkBase.IdleMode;
 import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.kauailabs.navx.frc.AHRS;
+import com.kauailabs.navx.frc.AHRS.SerialDataType;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkPIDController;
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
+import edu.wpi.first.math.kinematics.WheelPositions;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-// import edu.wpi.first.wpilibj.drive.RobotDriveBase.MotorType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import javax.swing.text.html.parser.DTD;
+
 import org.littletonrobotics.junction.LoggedRobot;
 
 /**
- * The VM is configured to automatically run this class, and to call the functions corresponding to
- * each mode, as described in the TimedRobot documentation. If you change the name of this class or
- * the package after creating this project, you must also update the build.gradle file in the
+ * The VM is configured to automatically run this class, and to call the
+ * functions corresponding to
+ * each mode, as described in the TimedRobot documentation. If you change the
+ * name of this class or
+ * the package after creating this project, you must also update the
+ * build.gradle file in the
  * project.
  */
 public class Robot extends LoggedRobot {
@@ -38,6 +53,7 @@ public class Robot extends LoggedRobot {
   private static final String blue_amp = "blue_amp";
   private static final String Red_amp = "Red_amp";
   private static final String speaker = "Speaker";
+  private static final String Rank_point = "Rank_point";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
@@ -54,9 +70,10 @@ public class Robot extends LoggedRobot {
 
   private static DigitalInput ringSensor = new DigitalInput(0);
 
+  private static RelativeEncoder rightEncoder1 = rightMotor1.getEncoder();
   private static RelativeEncoder leftEncoder1 = leftMotor1.getEncoder();
   private static RelativeEncoder rotateEncoder = rotateMotor.getEncoder();
-  private static double circumference = Math.PI * .1016;
+  private static double circumference = 2 * Math.PI * Units.inchesToMeters(2.0);
   private static double gearRatio = 8.95;
   private static double rotateGearRatio = 100;
 
@@ -67,7 +84,16 @@ public class Robot extends LoggedRobot {
   private static GenericHID buttonJoystick = new GenericHID(2);
   // leftMotor1 and rightMotor1 are leaders
   private DifferentialDrive diffDrive = new DifferentialDrive(leftMotor1, rightMotor1);
-  // * This function is run when the robot is first started up and should be used for any
+
+  private final AHRS gyro = new AHRS(edu.wpi.first.wpilibj.SerialPort.Port.kMXP, SerialDataType.kProcessedData,
+      (byte) 50);
+
+  private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(20.5));
+
+  private DifferentialDrivePoseEstimator poseEstimator;
+
+  // * This function is run when the robot is first started up and should be used
+  // for any
   // * initialization code.
   // */
   @Override
@@ -84,6 +110,7 @@ public class Robot extends LoggedRobot {
     m_chooser.addOption("blue_amp", blue_amp);
     m_chooser.addOption("Red_amp", Red_amp);
     m_chooser.addOption("speaker", speaker);
+    m_chooser.addOption("Ranl_point", Rank_point);
 
     // Motor 2 will allways follow motor 1
     // dont use motor 2 in code
@@ -114,6 +141,7 @@ public class Robot extends LoggedRobot {
     leftMotor2.follow(leftMotor1);
     rightMotor2.follow(rightMotor1);
 
+    rightEncoder1.setPositionConversionFactor(circumference / gearRatio);
     leftEncoder1.setPositionConversionFactor(circumference / gearRatio);
     rotateEncoder.setPositionConversionFactor(
         360 / rotateGearRatio); // Convert position of intake to degrees
@@ -133,27 +161,51 @@ public class Robot extends LoggedRobot {
 
     CameraServer.startAutomaticCapture(); // .setResolution(1280, 720);
 
-    ringSensor.get();
+    poseEstimator = new DifferentialDrivePoseEstimator(
+        kinematics,
+        new Rotation2d(),
+        leftEncoder1.getPosition(),
+        rightEncoder1.getPosition(),
+        new Pose2d());
   }
 
   /**
-   * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
+   * This function is called every 20 ms, no matter the mode. Use this for items
+   * like diagnostics
    * that you want ran during disabled, autonomous, teleoperated and test.
    *
-   * <p>This runs after the mode specific periodic functions, but before LiveWindow and
+   * <p>
+   * This runs after the mode specific periodic functions, but before LiveWindow
+   * and
    * SmartDashboard integrated updating.
    */
   @Override
-  public void robotPeriodic() {}
+  public void robotPeriodic() {
+    SmartDashboard.putBoolean("ringSensor", ringSensor.get());
+    DifferentialDriveWheelPositions wheelPositions = new DifferentialDriveWheelPositions(
+        leftEncoder1.getPosition(),
+        rightEncoder1.getPosition());
+    poseEstimator.update(gyro.getRotation2d(), wheelPositions);
+    Pose2d robotPose = poseEstimator.getEstimatedPosition();
+    SmartDashboard.putNumberArray("RobotPose", new double[] { robotPose.getTranslation().getX(),
+        robotPose.getTranslation().getY(), robotPose.getRotation().getRadians() });
+  }
 
   /**
-   * This autonomous (along with the chooser code above) shows how to select between different
-   * autonomous modes using the dashboard. The sendable chooser code works with the Java
-   * SmartDashboard. If you prefer the LabVIEW Dashboard, remove all of the chooser code and
-   * uncomment the getString line to get the auto name from the text box below the Gyro
+   * This autonomous (along with the chooser code above) shows how to select
+   * between different
+   * autonomous modes using the dashboard. The sendable chooser code works with
+   * the Java
+   * SmartDashboard. If you prefer the LabVIEW Dashboard, remove all of the
+   * chooser code and
+   * uncomment the getString line to get the auto name from the text box below the
+   * Gyro
    *
-   * <p>You can add additional auto modes by adding additional comparisons to the switch structure
-   * below with additional strings. If using the SendableChooser make sure to add them to the
+   * <p>
+   * You can add additional auto modes by adding additional comparisons to the
+   * switch structure
+   * below with additional strings. If using the SendableChooser make sure to add
+   * them to the
    * chooser code above as well.
    */
   @Override
@@ -169,6 +221,17 @@ public class Robot extends LoggedRobot {
   @Override
   public void autonomousPeriodic() {
     switch (m_autoSelected) {
+      case Rank_point:
+        if (timer.get() < .1) {
+          pullMotor.set(.5);
+          shootMotor.set(1);
+          shootMotorFollower.set(1);
+        } else if (timer.get() < 1) {
+          shootMotor.set(1);
+          shootMotorFollower.set(1);
+        } else if (timer.get() < 2)
+          ;
+
       case speaker:
         if (timer.get() < .1) { // 0.1 seconds
           pullMotor.set(.5);
@@ -245,7 +308,7 @@ public class Robot extends LoggedRobot {
           // } else if (timer.get() < 14) diffDrive.arcadeDrive(7, 0);
           // else {
 
-          //  diffDrive.arcadeDrive(0, 0); // drive OFF
+          // diffDrive.arcadeDrive(0, 0); // drive OFF
 
           // stop and hang out! :)
         }
@@ -339,60 +402,60 @@ public class Robot extends LoggedRobot {
 
         break;
 
-        // case amp_auto:
-        // Clear toothpics from intake
-        // if (timer.get() < .1) {
-        // pullMotor.set(.5);
-        // move torawds the amp
-        // } else if (timer.get() < .2) {
-        //  pullMotor.set(0);
-        // } else if (timer.get() < 1.2) {
-        // diffDrive.arcadeDrive(.8, 0);
+      // case amp_auto:
+      // Clear toothpics from intake
+      // if (timer.get() < .1) {
+      // pullMotor.set(.5);
+      // move torawds the amp
+      // } else if (timer.get() < .2) {
+      // pullMotor.set(0);
+      // } else if (timer.get() < 1.2) {
+      // diffDrive.arcadeDrive(.8, 0);
 
-        // } else if (timer.get() < 1.45) {
-        // diffDrive.arcadeDrive(0, .5);
+      // } else if (timer.get() < 1.45) {
+      // diffDrive.arcadeDrive(0, .5);
 
-        // } else if (timer.get() < 1.5) {
-        // diffDrive.arcadeDrive(-.5, 0);
+      // } else if (timer.get() < 1.5) {
+      // diffDrive.arcadeDrive(-.5, 0);
 
-        // } else if (timer.get() < 3.5) {
-        // shootMotor.set(.25);
-        // shootMotorFollower.set(.25);
-        // } else if (timer.get() < 5) {
-        // pullMotor.set(-.5);
-        // } else if (timer.get() < 5.2) {
-        // shootMotor.set(0);
-        // shootMotorFollower.set(0);
-        // pullMotor.set(0);
-        // diffDrive.arcadeDrive(.5, 0);
+      // } else if (timer.get() < 3.5) {
+      // shootMotor.set(.25);
+      // shootMotorFollower.set(.25);
+      // } else if (timer.get() < 5) {
+      // pullMotor.set(-.5);
+      // } else if (timer.get() < 5.2) {
+      // shootMotor.set(0);
+      // shootMotorFollower.set(0);
+      // pullMotor.set(0);
+      // diffDrive.arcadeDrive(.5, 0);
 
-        // } else if (timer.get() < 5.45) {
-        // diffDrive.arcadeDrive(0, -.5);
-        // } else if (timer.get() < 8.45) {
-        // diffDrive.arcadeDrive(.8, 0);
-        // rotateMotor
-        //  .getPIDController()
-        // .setReference(-210, ControlType.kPosition); // TODO: Check position of intake
-        // pullMotor.set(.5);
+      // } else if (timer.get() < 5.45) {
+      // diffDrive.arcadeDrive(0, -.5);
+      // } else if (timer.get() < 8.45) {
+      // diffDrive.arcadeDrive(.8, 0);
+      // rotateMotor
+      // .getPIDController()
+      // .setReference(-210, ControlType.kPosition); // TODO: Check position of intake
+      // pullMotor.set(.5);
 
-        // } else if (timer.get() < 9) {
-        // diffDrive.arcadeDrive(0, 0);
-        // } else if (!ringSensor.get()) {
-        // pullMotor.set(0);
+      // } else if (timer.get() < 9) {
+      // diffDrive.arcadeDrive(0, 0);
+      // } else if (!ringSensor.get()) {
+      // pullMotor.set(0);
 
-        // } else if (timer.get() < 11) {
-        //  diffDrive.arcadeDrive(-.8, 0);
-        // } else if (timer.get() < 11.25) {
-        // diffDrive.arcadeDrive(0, .5);
-        // } else if (timer.get() < 11.5) {
-        // diffDrive.arcadeDrive(.5, 0);
-        // shootMotor.set(1);
-        // shootMotorFollower.set(1);
-        // } else if (timer.get() > 14) {
-        // pullMotor.set(-.5);
-        // }
+      // } else if (timer.get() < 11) {
+      // diffDrive.arcadeDrive(-.8, 0);
+      // } else if (timer.get() < 11.25) {
+      // diffDrive.arcadeDrive(0, .5);
+      // } else if (timer.get() < 11.5) {
+      // diffDrive.arcadeDrive(.5, 0);
+      // shootMotor.set(1);
+      // shootMotorFollower.set(1);
+      // } else if (timer.get() > 14) {
+      // pullMotor.set(-.5);
+      // }
 
-        // break;
+      // break;
 
       case shoot:
         // Clear toothpics from intake
@@ -575,8 +638,8 @@ public class Robot extends LoggedRobot {
   // shootMotor.set(1);
   // shootMotorFollower.set(1);
   // } else if (timer.get() < 3) {
-  //  pullMotor.set(-.5);
-  //  }
+  // pullMotor.set(-.5);
+  // }
 
   // else if (timer.get() < 4){
   // shootMotor.set(.0);
@@ -587,14 +650,15 @@ public class Robot extends LoggedRobot {
   // diffDrive.arcadeDrive(.8, 0);
 
   // } else if (timer.get() < 4.9); {
-  //  diffDrive.arcadeDrive(0, .8);
+  // diffDrive.arcadeDrive(0, .8);
 
   // } else if (timer.get() <5.5); {
-  //    diffDrive.arcadeDrive(.8, 0);
+  // diffDrive.arcadeDrive(.8, 0);
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+  }
 
   /** This function is called periodically during operator control. */
   @Override
@@ -634,29 +698,36 @@ public class Robot extends LoggedRobot {
       shootMotorFollower.set(0);
     }
     diffDrive.arcadeDrive(leftJoystick.getRawAxis(1) * 1, rightJoystick.getRawAxis(0) * .8);
+
   }
 
   /** This function is called once when the robot is disabled. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+  }
 
   /** This function is called periodically when disabled. */
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+  }
 
   /** This function is called once when test mode is enabled. */
   @Override
-  public void testInit() {}
+  public void testInit() {
+  }
 
   /** This function is called periodically during test mode. */
   @Override
-  public void testPeriodic() {}
+  public void testPeriodic() {
+  }
 
   /** This function is called once when the robot is first started up. */
   @Override
-  public void simulationInit() {}
+  public void simulationInit() {
+  }
 
   /** This function is called periodically whilst in simulation. */
   @Override
-  public void simulationPeriodic() {}
+  public void simulationPeriodic() {
+  }
 }
