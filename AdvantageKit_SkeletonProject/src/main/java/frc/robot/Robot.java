@@ -36,6 +36,8 @@ public class Robot extends LoggedRobot {
   private static final String shoot = "shoot";
   private static final String amp_auto = "amp_auto";
   private static final String blue_amp = "blue_amp";
+  private static final String Red_amp = "Red_amp";
+  private static final String speaker = "Speaker";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
@@ -80,6 +82,8 @@ public class Robot extends LoggedRobot {
     m_chooser.addOption("shoot", shoot);
     m_chooser.addOption("amp_auto", amp_auto);
     m_chooser.addOption("blue_amp", blue_amp);
+    m_chooser.addOption("Red_amp", Red_amp);
+    m_chooser.addOption("speaker", speaker);
 
     // Motor 2 will allways follow motor 1
     // dont use motor 2 in code
@@ -165,6 +169,131 @@ public class Robot extends LoggedRobot {
   @Override
   public void autonomousPeriodic() {
     switch (m_autoSelected) {
+      case speaker:
+        if (timer.get() < .1) { // 0.1 seconds
+          pullMotor.set(.5);
+          // sacrifice toothpick
+        } else if (timer.get() < .3) { // 0.2 seconds
+          pullMotor.set(0);
+          // stop intake
+        } else if (timer.get() < 2) { // 1.7 sec
+
+          shootMotorFollower.set(1);
+          shootMotor.set(1);
+          // warm up shooter
+        } else if (timer.get() < 2.5) { // 0.5 sec
+
+          pullMotor.set(-.5);
+
+          // release the note
+
+        } else if (timer.get() < 6) { // 1.5 sec
+
+          // rightShooter.set(0);
+          // leftShooter.set(0);
+          pullMotor.set(0);
+          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+
+          // stop intake and shooter
+        } else if (timer.get() < 8) {
+          pullMotor.set(.3);
+          diffDrive.arcadeDrive(-0.5, 0);
+
+          // drive backwards and intake note
+
+        } else if (timer.get() < 9) { // 1
+
+          diffDrive.arcadeDrive(0, 0);
+          rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
+
+          // stop driving and close lifter
+          // Postive is out
+
+        } else if (timer.get() < 10.5) { // 1.5 sec
+
+          shootMotor.set(1);
+          shootMotorFollower.set(1);
+          diffDrive.arcadeDrive(0.5, 0);
+
+          // warm up shooter AND drive forward
+
+        } else if (timer.get() < 13) { // 1 sec
+
+          pullMotor.set(-.5);
+
+          // Feed the note
+
+        } else if (timer.get() < 15) { // 1.5 sec
+
+          shootMotor.set(0); // right shooter motor OFF
+          shootMotorFollower.set(0); // left shooter motor OFF
+          pullMotor.set(0); // intake OFF
+          diffDrive.arcadeDrive(-0.6, 0); // drive backwards -0.6 power
+
+          // Shooter & intake off, drive backwards to cross line
+
+          // } else if (timer.get() < 9.5) { // 0.5 seconds
+          // diffDrive.arcadeDrive(-0.7, 0.3);
+          // try to turn and drive backwards???
+          // } else if (timer.get() < 12) { // 2.5 seconds
+          // diffDrive.arcadeDrive(-0.7, 0);
+          // turn slightly to avoid
+          // } else if (timer.get() < 12.5) { // 0.5 seconds
+          // drive back at middle line
+          // diffDrive.arcadeDrive(-0.7, -0.3);
+          // turn back pointing at note
+          // } else if (timer.get() < 14) diffDrive.arcadeDrive(7, 0);
+          // else {
+
+          //  diffDrive.arcadeDrive(0, 0); // drive OFF
+
+          // stop and hang out! :)
+        }
+        break;
+
+      case Red_amp:
+        if (timer.get() < .1) {
+          // brake toothpicks
+          pullMotor.set(.5);
+          // readys the motor
+        } else if (timer.get() < .2) {
+          pullMotor.set(0);
+          shootMotor.set(.23);
+          shootMotorFollower.set(.23);
+        } else if (timer.get() < 1.9) {
+          diffDrive.arcadeDrive(.5, 0.5);
+        } else if (timer.get() < 2.4) {
+          diffDrive.arcadeDrive(.5, 0);
+        } else if (timer.get() < 3.4) {
+          diffDrive.arcadeDrive(0, 0);
+        } else if (timer.get() < 5.4) {
+          pullMotor.set(-.5);
+        } else if (timer.get() < 6.4) {
+          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+        } else if (timer.get() < 6.9) {
+          diffDrive.arcadeDrive(-.5, 0);
+
+        } else if (timer.get() < 8.7) {
+          diffDrive.arcadeDrive(-.5, .5);
+          pullMotor.set(.5);
+        } else if (timer.get() < 9.2) {
+          pullMotor.set(.5);
+
+        } else if (timer.get() < 11) {
+          pullMotor.set(0);
+          diffDrive.arcadeDrive(.5, -0.5);
+        } else if (timer.get() < 12.2) {
+          rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
+          diffDrive.arcadeDrive(.5, 0);
+          shootMotor.set(.23);
+          shootMotorFollower.set(.23);
+        } else if (timer.get() > 13.3) {
+          pullMotor.set(-.5);
+
+        } else {
+
+        }
+        break;
       case blue_amp:
         if (timer.get() < .1) {
           // brake toothpicks
@@ -172,8 +301,8 @@ public class Robot extends LoggedRobot {
           // readys the motor
         } else if (timer.get() < .2) {
           pullMotor.set(0);
-          shootMotor.set(.25);
-          shootMotorFollower.set(.25);
+          shootMotor.set(.23);
+          shootMotorFollower.set(.23);
         } else if (timer.get() < 1.9) {
           diffDrive.arcadeDrive(.5, -.5);
         } else if (timer.get() < 2.4) {
@@ -183,7 +312,7 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 5.4) {
           pullMotor.set(-.5);
         } else if (timer.get() < 6.4) {
-          rotateMotor.getPIDController().setReference(-230, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
         } else if (timer.get() < 6.9) {
           diffDrive.arcadeDrive(-.5, 0);
 
@@ -193,14 +322,14 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 9.2) {
           pullMotor.set(.5);
 
-        } else if (timer.get() < 11.6) {
+        } else if (timer.get() < 11) {
           pullMotor.set(0);
           diffDrive.arcadeDrive(.5, .5);
         } else if (timer.get() < 12.2) {
           rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
           diffDrive.arcadeDrive(.5, 0);
-          shootMotor.set(.25);
-          shootMotorFollower.set(.25);
+          shootMotor.set(.23);
+          shootMotorFollower.set(.23);
         } else if (timer.get() > 13.3) {
           pullMotor.set(-.5);
 
@@ -210,60 +339,60 @@ public class Robot extends LoggedRobot {
 
         break;
 
-      case amp_auto:
+        // case amp_auto:
         // Clear toothpics from intake
-        if (timer.get() < .1) {
-          pullMotor.set(.5);
-          // move torawds the amp
-        } else if (timer.get() < .2) {
-          pullMotor.set(0);
-        } else if (timer.get() < 1.2) {
-          diffDrive.arcadeDrive(.8, 0);
+        // if (timer.get() < .1) {
+        // pullMotor.set(.5);
+        // move torawds the amp
+        // } else if (timer.get() < .2) {
+        //  pullMotor.set(0);
+        // } else if (timer.get() < 1.2) {
+        // diffDrive.arcadeDrive(.8, 0);
 
-        } else if (timer.get() < 1.45) {
-          diffDrive.arcadeDrive(0, .5);
+        // } else if (timer.get() < 1.45) {
+        // diffDrive.arcadeDrive(0, .5);
 
-        } else if (timer.get() < 1.5) {
-          diffDrive.arcadeDrive(-.5, 0);
+        // } else if (timer.get() < 1.5) {
+        // diffDrive.arcadeDrive(-.5, 0);
 
-        } else if (timer.get() < 3.5) {
-          shootMotor.set(.25);
-          shootMotorFollower.set(.25);
-        } else if (timer.get() < 5) {
-          pullMotor.set(-.5);
-        } else if (timer.get() < 5.2) {
-          shootMotor.set(0);
-          shootMotorFollower.set(0);
-          pullMotor.set(0);
-          diffDrive.arcadeDrive(.5, 0);
+        // } else if (timer.get() < 3.5) {
+        // shootMotor.set(.25);
+        // shootMotorFollower.set(.25);
+        // } else if (timer.get() < 5) {
+        // pullMotor.set(-.5);
+        // } else if (timer.get() < 5.2) {
+        // shootMotor.set(0);
+        // shootMotorFollower.set(0);
+        // pullMotor.set(0);
+        // diffDrive.arcadeDrive(.5, 0);
 
-        } else if (timer.get() < 5.45) {
-          diffDrive.arcadeDrive(0, -.5);
-        } else if (timer.get() < 8.45) {
-          diffDrive.arcadeDrive(.8, 0);
-          rotateMotor
-              .getPIDController()
-              .setReference(-210, ControlType.kPosition); // TODO: Check position of intake
-          pullMotor.set(.5);
+        // } else if (timer.get() < 5.45) {
+        // diffDrive.arcadeDrive(0, -.5);
+        // } else if (timer.get() < 8.45) {
+        // diffDrive.arcadeDrive(.8, 0);
+        // rotateMotor
+        //  .getPIDController()
+        // .setReference(-210, ControlType.kPosition); // TODO: Check position of intake
+        // pullMotor.set(.5);
 
-        } else if (timer.get() < 9) {
-          diffDrive.arcadeDrive(0, 0);
-        } else if (!ringSensor.get()) {
-          pullMotor.set(0);
+        // } else if (timer.get() < 9) {
+        // diffDrive.arcadeDrive(0, 0);
+        // } else if (!ringSensor.get()) {
+        // pullMotor.set(0);
 
-        } else if (timer.get() < 11) {
-          diffDrive.arcadeDrive(-.8, 0);
-        } else if (timer.get() < 11.25) {
-          diffDrive.arcadeDrive(0, .5);
-        } else if (timer.get() < 11.5) {
-          diffDrive.arcadeDrive(.5, 0);
-          shootMotor.set(1);
-          shootMotorFollower.set(1);
-        } else if (timer.get() > 14) {
-          pullMotor.set(-.5);
-        }
+        // } else if (timer.get() < 11) {
+        //  diffDrive.arcadeDrive(-.8, 0);
+        // } else if (timer.get() < 11.25) {
+        // diffDrive.arcadeDrive(0, .5);
+        // } else if (timer.get() < 11.5) {
+        // diffDrive.arcadeDrive(.5, 0);
+        // shootMotor.set(1);
+        // shootMotorFollower.set(1);
+        // } else if (timer.get() > 14) {
+        // pullMotor.set(-.5);
+        // }
 
-        break;
+        // break;
 
       case shoot:
         // Clear toothpics from intake
@@ -474,11 +603,11 @@ public class Robot extends LoggedRobot {
     SmartDashboard.putNumber("Intake Position", rotateMotor.getEncoder().getPosition());
 
     if (buttonJoystick.getRawButton(5)) {
-      rotateMotor.getPIDController().setReference(-225, ControlType.kPosition);
+      rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
     }
     // rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
 
-    if (buttonJoystick.getRawButton(6)) {
+    if (buttonJoystick.getRawButton(10)) {
       rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
     }
 
@@ -494,8 +623,11 @@ public class Robot extends LoggedRobot {
       shootMotor.set(1);
       shootMotorFollower.set(1);
     } else if (buttonJoystick.getRawButton(4)) {
-      shootMotor.set(.25);
-      shootMotorFollower.set(.25);
+      shootMotor.set(.23);
+      shootMotorFollower.set(.23);
+    } else if (buttonJoystick.getRawButton(6)) {
+      shootMotor.set(-.5);
+      shootMotorFollower.set(-.5);
     } else {
       shootMotor.set(0);
 
