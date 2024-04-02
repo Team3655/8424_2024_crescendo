@@ -146,7 +146,7 @@ public class Robot extends LoggedRobot {
 
     rotateEncoder.setPosition(0);
 
-    pid.setP(.007);
+    pid.setP(.006);
 
     leftMotor1.burnFlash();
     leftMotor2.burnFlash();
@@ -719,7 +719,7 @@ public class Robot extends LoggedRobot {
     if (buttonJoystick.getRawButton(5)) {
       rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
     }
-    rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
+    // rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
 
     if (buttonJoystick.getRawButton(10)) {
       rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
