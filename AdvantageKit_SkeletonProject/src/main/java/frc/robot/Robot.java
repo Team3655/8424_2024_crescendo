@@ -354,7 +354,7 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 9.5) {
           diffDrive.arcadeDrive(-0.7, 0);
         } else if (timer.get() < 10.5) {
-          diffDrive.arcadeDrive(-0.3, -0.5);
+          diffDrive.arcadeDrive(-0.3, -0.8);
         } else if (timer.get() < 11.5) {
           diffDrive.arcadeDrive(-0.7, 0);
           pullMotor.set(-0.5);
