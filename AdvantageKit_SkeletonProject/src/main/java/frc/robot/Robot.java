@@ -347,14 +347,14 @@ public class Robot extends LoggedRobot {
           shootMotor.set(0);
           shootMotorFollower.set(0);
         } else if (timer.get() < 6.3) {
-          diffDrive.arcadeDrive(-0.3, -0.3);
+          diffDrive.arcadeDrive(-0.3, -0.7);
           rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
         } else if (timer.get() < 7.3) {
           pullMotor.set(.5);
         } else if (timer.get() < 9.5) {
           diffDrive.arcadeDrive(-0.7, 0);
         } else if (timer.get() < 10.5) {
-          diffDrive.arcadeDrive(-0.3, -0.8);
+          diffDrive.arcadeDrive(-0.3, -0.5);
         } else if (timer.get() < 11.5) {
           diffDrive.arcadeDrive(-0.7, 0);
           pullMotor.set(-0.5);
@@ -717,7 +717,7 @@ public class Robot extends LoggedRobot {
     SmartDashboard.putNumber("Intake Position", rotateMotor.getEncoder().getPosition());
 
     if (buttonJoystick.getRawButton(5)) {
-      rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+      rotateMotor.getPIDController().setReference(-216, ControlType.kPosition);
     }
     // rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
 
