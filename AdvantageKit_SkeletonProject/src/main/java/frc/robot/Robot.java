@@ -61,6 +61,8 @@ public class Robot extends LoggedRobot {
   private static CANSparkMax shootMotorFollower = new CANSparkMax(6, MotorType.kBrushless);
   private static CANSparkMax pullMotor = new CANSparkMax(7, MotorType.kBrushless);
   private static CANSparkMax rotateMotor = new CANSparkMax(8, MotorType.kBrushless);
+  private static CANSparkMax hang1 = new CANSparkMax(9, MotorType.kBrushless);
+  private static CANSparkMax hang2 = new CANSparkMax(10, MotorType.kBrushless);
 
   private static DigitalInput ringSensor = new DigitalInput(0);
 
@@ -131,6 +133,8 @@ public class Robot extends LoggedRobot {
     rightMotor2.setIdleMode(IdleMode.kBrake);
     pullMotor.setIdleMode(IdleMode.kBrake);
     rotateMotor.setIdleMode(IdleMode.kBrake);
+    hang1.setIdleMode(IdleMode.kBrake);
+    hang2.setIdleMode(IdleMode.kBrake);
 
     leftMotor1.setInverted(true);
     rightMotor1.setInverted(false);
@@ -146,7 +150,7 @@ public class Robot extends LoggedRobot {
 
     rotateEncoder.setPosition(0);
 
-    pid.setP(.006);
+    pid.setP(.0075);
 
     leftMotor1.burnFlash();
     leftMotor2.burnFlash();
@@ -249,7 +253,7 @@ public class Robot extends LoggedRobot {
           // rightShooter.set(0);
           // leftShooter.set(0);
           pullMotor.set(0);
-          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-199, ControlType.kPosition);
 
           // stop intake and shooter
         } else if (timer.get() < 5.3) {
@@ -323,7 +327,7 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 4.5) diffDrive.arcadeDrive(-0.7, 0);
         else if (timer.get() < 6.5) {
           diffDrive.arcadeDrive(0.3, -0.4);
-          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-199, ControlType.kPosition);
         } else if (timer.get() < 7.5) {
           pullMotor.set(.5);
         }
@@ -348,7 +352,7 @@ public class Robot extends LoggedRobot {
           shootMotorFollower.set(0);
         } else if (timer.get() < 6.3) {
           diffDrive.arcadeDrive(-0.3, -0.7);
-          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-199, ControlType.kPosition);
         } else if (timer.get() < 7.3) {
           pullMotor.set(.5);
         } else if (timer.get() < 9.5) {
@@ -371,8 +375,8 @@ public class Robot extends LoggedRobot {
           // readys the motor
         } else if (timer.get() < .2) {
           pullMotor.set(0);
-          shootMotor.set(.23);
-          shootMotorFollower.set(.23);
+          shootMotor.set(.25);
+          shootMotorFollower.set(.25);
         } else if (timer.get() < 1.9) {
           diffDrive.arcadeDrive(.5, 0.5);
         } else if (timer.get() < 2.4) {
@@ -380,9 +384,9 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 3.4) {
           diffDrive.arcadeDrive(0, 0);
         } else if (timer.get() < 5.4) {
-          pullMotor.set(-.5);
+          pullMotor.set(-.7);
         } else if (timer.get() < 6.4) {
-          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-150, ControlType.kPosition);
         } else if (timer.get() < 6.9) {
           diffDrive.arcadeDrive(-.5, 0);
 
@@ -394,12 +398,12 @@ public class Robot extends LoggedRobot {
 
         } else if (timer.get() < 11) {
           pullMotor.set(0);
-          diffDrive.arcadeDrive(.5, -0.5);
+          diffDrive.arcadeDrive(.5, -0.6);
         } else if (timer.get() < 12.2) {
           rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
           diffDrive.arcadeDrive(.5, 0);
-          shootMotor.set(.23);
-          shootMotorFollower.set(.23);
+          shootMotor.set(.25);
+          shootMotorFollower.set(.25);
         } else if (timer.get() > 13.3) {
           pullMotor.set(-.5);
 
@@ -425,7 +429,7 @@ public class Robot extends LoggedRobot {
         } else if (timer.get() < 5.4) {
           pullMotor.set(-.5);
         } else if (timer.get() < 6.4) {
-          rotateMotor.getPIDController().setReference(-235, ControlType.kPosition);
+          rotateMotor.getPIDController().setReference(-150, ControlType.kPosition);
         } else if (timer.get() < 6.9) {
           diffDrive.arcadeDrive(-.5, 0);
 
@@ -440,9 +444,9 @@ public class Robot extends LoggedRobot {
           diffDrive.arcadeDrive(.5, .5);
         } else if (timer.get() < 12.2) {
           rotateMotor.getPIDController().setReference(0, ControlType.kPosition);
-          diffDrive.arcadeDrive(.5, 0);
-          shootMotor.set(.23);
-          shootMotorFollower.set(.23);
+          diffDrive.arcadeDrive(.6, 0);
+          shootMotor.set(.25);
+          shootMotorFollower.set(.25);
         } else if (timer.get() > 13.3) {
           pullMotor.set(-.5);
 
@@ -716,8 +720,24 @@ public class Robot extends LoggedRobot {
 
     SmartDashboard.putNumber("Intake Position", rotateMotor.getEncoder().getPosition());
 
+    if (buttonJoystick.getRawButton(18)) {
+      hang2.set(1);
+    } else if (buttonJoystick.getRawButton(20)) {
+      hang2.set(-1);
+    } else {
+      hang2.set(0);
+    }
+
+    if (buttonJoystick.getRawButton(17)) {
+      hang1.set(1);
+    } else if (buttonJoystick.getRawButton(19)) {
+      hang1.set(-1);
+    } else {
+      hang1.set(0);
+    }
+
     if (buttonJoystick.getRawButton(5)) {
-      rotateMotor.getPIDController().setReference(-216, ControlType.kPosition);
+      rotateMotor.getPIDController().setReference(-199, ControlType.kPosition);
     }
     // rotateMotor.set(buttonJoystick.getRawAxis(1) * 0.6);
 
